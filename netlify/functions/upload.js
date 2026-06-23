@@ -5,6 +5,13 @@ import crypto from 'node:crypto';
 
 const STORE = 'soundboard';
 
+function soundStore() {
+  const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+  const token = process.env.NETLIFY_API_TOKEN || process.env.NETLIFY_BLOBS_TOKEN;
+  if (siteID && token) return getStore({ name: STORE, siteID, token });
+  return getStore(STORE);
+}
+
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -40,7 +47,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: 'Empty audio data' };
   }
 
-  const store = getStore(STORE);
+  const store = soundStore();
   const id = crypto.randomBytes(8).toString('hex');
 
   // Store the audio bytes (as an ArrayBuffer for cross-runtime safety).

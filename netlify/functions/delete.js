@@ -4,6 +4,13 @@ import { getStore } from '@netlify/blobs';
 
 const STORE = 'soundboard';
 
+function soundStore() {
+  const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+  const token = process.env.NETLIFY_API_TOKEN || process.env.NETLIFY_BLOBS_TOKEN;
+  if (siteID && token) return getStore({ name: STORE, siteID, token });
+  return getStore(STORE);
+}
+
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST' && event.httpMethod !== 'DELETE') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -19,7 +26,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: 'Missing "id"' };
   }
 
-  const store = getStore(STORE);
+  const store = soundStore();
   const index = (await store.get('index', { type: 'json' })) || [];
   if (!index.find((s) => s.id === id)) {
     return { statusCode: 404, body: 'Sound not found' };

@@ -279,9 +279,6 @@
       <h2>ADMIN TERMINAL</h2>
       <div class="hint">ADD OR REMOVE AUDIO CLIPS · ROBCO INDUSTRIES (TM)</div>
 
-      <button class="btn ghost" id="seed-pack" style="margin-top:0;margin-bottom:18px;">▸ LOAD FALLOUT STARTER PACK (12 CLIPS)</button>
-      <div class="feedback" id="seed-feedback"></div>
-
       <div class="tabs">
         <button data-tab="upload" class="active">UPLOAD</button>
         <button data-tab="record">RECORD</button>
@@ -321,16 +318,48 @@ const boardEl  = document.getElementById('board');
 const statusEl = document.getElementById('status');
 
 // ---------- Soundboard ----------
-async function loadSounds() {
-  statusEl.textContent = 'LOADING SOUND BANK…';
+// Each tile is { name, src, deletable, id? }.
+// Built-in clips are static files (no backend needed). Custom clips come
+// from the backend store and can be deleted.
+async function loadBuiltins() {
+  try {
+    const res = await fetch('/sound-pack/manifest.json', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.sounds || []).map((s) => ({
+      name: s.name,
+      src: '/sound-pack/' + s.file,
+      deletable: false,
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+async function loadCustom() {
   try {
     const res = await fetch(API.list);
+    if (!res.ok) return [];
     const data = await res.json();
-    renderBoard(data.sounds || []);
-    statusEl.textContent = (data.sounds || []).length + ' CLIP(S) LOADED · TAP A TILE TO PLAY';
+    return (data.sounds || []).map((s) => ({
+      name: s.name,
+      src: API.audio(s.id),
+      id: s.id,
+      deletable: true,
+    }));
   } catch (e) {
-    statusEl.textContent = 'ERROR: COULD NOT REACH SOUND BANK';
+    return [];
   }
+}
+
+async function loadSounds() {
+  statusEl.textContent = 'LOADING SOUND BANK…';
+  const [builtins, custom] = await Promise.all([loadBuiltins(), loadCustom()]);
+  const all = [...builtins, ...custom];
+  renderBoard(all);
+  statusEl.textContent = all.length
+    ? all.length + ' CLIP(S) LOADED · TAP A TILE TO PLAY'
+    : 'NO CLIPS — OPEN ADMIN TO UPLOAD OR RECORD';
 }
 
 function renderBoard(sounds) {
@@ -349,26 +378,28 @@ function renderBoard(sounds) {
 
     tile.addEventListener('click', (e) => {
       if (e.target.classList.contains('del')) return;
-      playSound(s.id, tile);
+      playSound(s.src, tile);
     });
 
-    const del = document.createElement('span');
-    del.className = 'del';
-    del.textContent = '✕';
-    del.title = 'Delete clip';
-    del.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteSound(s.id, s.name);
-    });
-    tile.appendChild(del);
+    if (s.deletable) {
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '✕';
+      del.title = 'Delete clip';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSound(s.id, s.name);
+      });
+      tile.appendChild(del);
+    }
 
     boardEl.appendChild(tile);
   });
 }
 
 // Fire-and-forget: new Audio each time so clips overlap freely.
-function playSound(id, tile) {
-  const audio = new Audio(API.audio(id));
+function playSound(src, tile) {
+  const audio = new Audio(src);
   audio.play().catch(() => {});
   if (tile) {
     tile.classList.add('playing');
@@ -520,58 +551,6 @@ recSave.addEventListener('click', async () => {
     recFeedback.textContent = 'Save failed: ' + e.message;
     recSave.disabled = false;
   }
-});
-
-// Seed starter pack — uploads bundled clips from /sound-pack into the store
-const STARTER_PACK = [
-  ['pipboy_select.mp3',   'Pip-Boy Select'],
-  ['pipboy_confirm.mp3',  'Pip-Boy Confirm'],
-  ['pipboy_cancel.mp3',   'Pip-Boy Cancel'],
-  ['geiger_counter.mp3',  'Geiger Counter'],
-  ['terminal_typing.mp3', 'Terminal Typing'],
-  ['radio_static.mp3',    'Radio Static'],
-  ['levelup_chime.mp3',   'Level Up'],
-  ['vault_alarm.mp3',     'Vault Alarm'],
-  ['stimpak.mp3',         'Stimpak'],
-  ['error_buzz.mp3',      'Error Buzz'],
-  ['vats_activate.mp3',   'V.A.T.S.'],
-  ['bottlecap.mp3',       'Bottlecap'],
-];
-
-const seedBtn = document.getElementById('seed-pack');
-const seedFeedback = document.getElementById('seed-feedback');
-seedBtn.addEventListener('click', async () => {
-  seedBtn.disabled = true;
-  seedFeedback.className = 'feedback';
-  let done = 0;
-  let lastErr = '';
-  for (let i = 0; i < STARTER_PACK.length; i++) {
-    const [file, name] = STARTER_PACK[i];
-    seedFeedback.textContent = 'SEEDING ' + (i + 1) + '/' + STARTER_PACK.length + ' — ' + name + '…';
-    try {
-      const res = await fetch('/sound-pack/' + file);
-      if (!res.ok) throw new Error('asset ' + file + ' -> ' + res.status);
-      const blob = await res.blob();
-      const dataUrl = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-      });
-      await saveClip(name, dataUrl);
-      done++;
-    } catch (e) {
-      lastErr = e.message;
-    }
-  }
-  if (done === STARTER_PACK.length) {
-    seedFeedback.textContent = 'DONE ✓ — ' + done + '/' + STARTER_PACK.length + ' CLIPS ADDED';
-  } else {
-    seedFeedback.className = 'feedback err';
-    seedFeedback.textContent = 'ADDED ' + done + '/' + STARTER_PACK.length + ' — last error: ' + lastErr;
-  }
-  seedBtn.disabled = false;
-  loadSounds();
 });
 
 // Init

@@ -1,0 +1,16 @@
+{
+  "sounds": [
+    { "name": "Pip-Boy Select",   "file": "pipboy_select.mp3" },
+    { "name": "Pip-Boy Confirm",  "file": "pipboy_confirm.mp3" },
+    { "name": "Pip-Boy Cancel",   "file": "pipboy_cancel.mp3" },
+    { "name": "Geiger Counter",   "file": "geiger_counter.mp3" },
+    { "name": "Terminal Typing",  "file": "terminal_typing.mp3" },
+    { "name": "Radio Static",     "file": "radio_static.mp3" },
+    { "name": "Level Up",         "file": "levelup_chime.mp3" },
+    { "name": "Vault Alarm",      "file": "vault_alarm.mp3" },
+    { "name": "Stimpak",          "file": "stimpak.mp3" },
+    { "name": "Error Buzz",       "file": "error_buzz.mp3" },
+    { "name": "V.A.T.S.",         "file": "vats_activate.mp3" },
+    { "name": "Bottlecap",        "file": "bottlecap.mp3" }
+  ]
+}
