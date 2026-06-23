@@ -279,6 +279,9 @@
       <h2>ADMIN TERMINAL</h2>
       <div class="hint">ADD OR REMOVE AUDIO CLIPS · ROBCO INDUSTRIES (TM)</div>
 
+      <button class="btn ghost" id="seed-pack" style="margin-top:0;margin-bottom:18px;">▸ LOAD FALLOUT STARTER PACK (12 CLIPS)</button>
+      <div class="feedback" id="seed-feedback"></div>
+
       <div class="tabs">
         <button data-tab="upload" class="active">UPLOAD</button>
         <button data-tab="record">RECORD</button>
@@ -517,6 +520,47 @@ recSave.addEventListener('click', async () => {
     recFeedback.textContent = 'Save failed: ' + e.message;
     recSave.disabled = false;
   }
+});
+
+// Seed starter pack — uploads bundled clips from /sound-pack into the store
+const STARTER_PACK = [
+  ['pipboy_select.mp3',   'Pip-Boy Select'],
+  ['pipboy_confirm.mp3',  'Pip-Boy Confirm'],
+  ['pipboy_cancel.mp3',   'Pip-Boy Cancel'],
+  ['geiger_counter.mp3',  'Geiger Counter'],
+  ['terminal_typing.mp3', 'Terminal Typing'],
+  ['radio_static.mp3',    'Radio Static'],
+  ['levelup_chime.mp3',   'Level Up'],
+  ['vault_alarm.mp3',     'Vault Alarm'],
+  ['stimpak.mp3',         'Stimpak'],
+  ['error_buzz.mp3',      'Error Buzz'],
+  ['vats_activate.mp3',   'V.A.T.S.'],
+  ['bottlecap.mp3',       'Bottlecap'],
+];
+
+const seedBtn = document.getElementById('seed-pack');
+const seedFeedback = document.getElementById('seed-feedback');
+seedBtn.addEventListener('click', async () => {
+  seedBtn.disabled = true;
+  seedFeedback.className = 'feedback';
+  let done = 0;
+  for (const [file, name] of STARTER_PACK) {
+    seedFeedback.textContent = 'SEEDING ' + (done + 1) + '/' + STARTER_PACK.length + ' — ' + name + '…';
+    try {
+      const blob = await (await fetch('/sound-pack/' + file)).blob();
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(blob);
+      });
+      await saveClip(name, dataUrl);
+      done++;
+    } catch (e) { /* skip a clip that fails, keep going */ }
+  }
+  seedFeedback.textContent = 'DONE ✓ — ' + done + '/' + STARTER_PACK.length + ' CLIPS ADDED';
+  seedBtn.disabled = false;
+  loadSounds();
 });
 
 // Init
