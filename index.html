@@ -230,15 +230,18 @@
   </div>
 
 <script>
-// --- Repo detection (owner.github.io -> owner / repo) ---
-const FALLBACK = { owner: 'freeedie666', repo: 'freeedie666.github.io' };
+// --- Repo detection ---
+// Account is "freedie666"; the repo may be the user site (freedie666.github.io)
+// or a project site (freeedie666.github.io served under a subpath). Works for both.
+const FALLBACK = { owner: 'freedie666', repo: 'freeedie666.github.io' };
 function repoInfo() {
   const host = location.hostname || '';
   if (host.endsWith('github.io')) {
     const owner = host.split('.')[0];
-    // path-based project pages: /<repo>/...  -> use first path segment as repo
+    // Project pages are served at /<repo>/... ; user/apex sites at / .
     const seg = location.pathname.split('/').filter(Boolean)[0];
-    const repo = (seg && !seg.includes('.')) ? seg : host;
+    const looksLikeFile = seg && /\.[a-z0-9]+$/i.test(seg) && !seg.endsWith('.github.io');
+    const repo = (seg && !looksLikeFile) ? seg : host;
     return { owner, repo };
   }
   return FALLBACK;
