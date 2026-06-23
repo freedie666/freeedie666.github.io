@@ -1,36 +1,26 @@
-// GET /api/audio/:id  ->  stream the stored audio file
-const fs = require('fs');
-const path = require('path');
+// GET /api/audio/:id  ->  stream a stored audio file from the Blobs store
+import { getStore } from '@netlify/blobs';
 
-const SOUND_DIR = '/tmp/sounds';
-const META_FILE = '/tmp/sounds.json';
+const STORE = 'soundboard';
 
-function readMeta() {
-  try {
-    return JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
   const id = (event.queryStringParameters || {}).id;
   if (!id) {
     return { statusCode: 400, body: 'Missing "id"' };
   }
 
-  const record = readMeta().find((s) => s.id === id);
+  const store = getStore(STORE);
+  const index = (await store.get('index', { type: 'json' })) || [];
+  const record = index.find((s) => s.id === id);
   if (!record) {
     return { statusCode: 404, body: 'Not found' };
   }
 
-  const filePath = path.join(SOUND_DIR, record.filename);
-  let buffer;
-  try {
-    buffer = fs.readFileSync(filePath);
-  } catch (e) {
-    return { statusCode: 404, body: 'File missing (cold start may have cleared /tmp)' };
+  const ab = await store.get('audio:' + id, { type: 'arrayBuffer' });
+  if (!ab) {
+    return { statusCode: 404, body: 'Audio data missing' };
   }
+  const buffer = Buffer.from(ab);
 
   return {
     statusCode: 200,

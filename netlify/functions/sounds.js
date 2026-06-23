@@ -1,19 +1,12 @@
 // GET /api/sounds  ->  list all stored sounds (metadata only)
-const fs = require('fs');
-const path = require('path');
+import { getStore } from '@netlify/blobs';
 
-const META_FILE = '/tmp/sounds.json';
+const STORE = 'soundboard';
 
-function readMeta() {
-  try {
-    return JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
-
-exports.handler = async () => {
-  const sounds = readMeta().map((s) => ({
+export const handler = async () => {
+  const store = getStore(STORE);
+  const index = (await store.get('index', { type: 'json' })) || [];
+  const sounds = index.map((s) => ({
     id: s.id,
     name: s.name,
     type: s.type,

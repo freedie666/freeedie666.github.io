@@ -1,25 +1,11 @@
-// POST /api/upload  ->  save an audio clip
+// POST /api/upload  ->  save an audio clip into the shared Netlify Blobs store
 // Body (JSON): { name: string, data: "<base64 or data URL>", type?: "audio/mpeg" }
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import { getStore } from '@netlify/blobs';
+import crypto from 'node:crypto';
 
-const SOUND_DIR = '/tmp/sounds';
-const META_FILE = '/tmp/sounds.json';
+const STORE = 'soundboard';
 
-function readMeta() {
-  try {
-    return JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
-
-function writeMeta(meta) {
-  fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2));
-}
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -54,27 +40,27 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: 'Empty audio data' };
   }
 
-  fs.mkdirSync(SOUND_DIR, { recursive: true });
-
+  const store = getStore(STORE);
   const id = crypto.randomBytes(8).toString('hex');
-  const ext = type.includes('wav') ? 'wav' : type.includes('ogg') ? 'ogg' : type.includes('webm') ? 'webm' : 'mp3';
-  const filename = `${id}.${ext}`;
-  fs.writeFileSync(path.join(SOUND_DIR, filename), buffer);
 
-  const meta = readMeta();
+  // Store the audio bytes (as an ArrayBuffer for cross-runtime safety).
+  const ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  await store.set('audio:' + id, ab);
+
+  // Update the metadata index.
+  const index = (await store.get('index', { type: 'json' })) || [];
   const record = {
     id,
     name: String(name).slice(0, 80),
-    filename,
     type,
     createdAt: new Date().toISOString(),
   };
-  meta.push(record);
-  writeMeta(meta);
+  index.push(record);
+  await store.setJSON('index', index);
 
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ok: true, sound: { id: record.id, name: record.name, type: record.type, createdAt: record.createdAt } }),
+    body: JSON.stringify({ ok: true, sound: record }),
   };
 };

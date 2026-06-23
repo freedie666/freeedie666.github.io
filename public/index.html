@@ -544,21 +544,32 @@ seedBtn.addEventListener('click', async () => {
   seedBtn.disabled = true;
   seedFeedback.className = 'feedback';
   let done = 0;
-  for (const [file, name] of STARTER_PACK) {
-    seedFeedback.textContent = 'SEEDING ' + (done + 1) + '/' + STARTER_PACK.length + ' — ' + name + '…';
+  let lastErr = '';
+  for (let i = 0; i < STARTER_PACK.length; i++) {
+    const [file, name] = STARTER_PACK[i];
+    seedFeedback.textContent = 'SEEDING ' + (i + 1) + '/' + STARTER_PACK.length + ' — ' + name + '…';
     try {
-      const blob = await (await fetch('/sound-pack/' + file)).blob();
-      const dataUrl = await new Promise((res, rej) => {
+      const res = await fetch('/sound-pack/' + file);
+      if (!res.ok) throw new Error('asset ' + file + ' -> ' + res.status);
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.onerror = rej;
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
         r.readAsDataURL(blob);
       });
       await saveClip(name, dataUrl);
       done++;
-    } catch (e) { /* skip a clip that fails, keep going */ }
+    } catch (e) {
+      lastErr = e.message;
+    }
   }
-  seedFeedback.textContent = 'DONE ✓ — ' + done + '/' + STARTER_PACK.length + ' CLIPS ADDED';
+  if (done === STARTER_PACK.length) {
+    seedFeedback.textContent = 'DONE ✓ — ' + done + '/' + STARTER_PACK.length + ' CLIPS ADDED';
+  } else {
+    seedFeedback.className = 'feedback err';
+    seedFeedback.textContent = 'ADDED ' + done + '/' + STARTER_PACK.length + ' — last error: ' + lastErr;
+  }
   seedBtn.disabled = false;
   loadSounds();
 });

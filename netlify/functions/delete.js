@@ -1,24 +1,10 @@
-// POST /api/delete  ->  remove a stored sound
+// POST /api/delete  ->  remove a stored sound from the Blobs store
 // Body (JSON): { id: string }
-const fs = require('fs');
-const path = require('path');
+import { getStore } from '@netlify/blobs';
 
-const SOUND_DIR = '/tmp/sounds';
-const META_FILE = '/tmp/sounds.json';
+const STORE = 'soundboard';
 
-function readMeta() {
-  try {
-    return JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-  } catch (e) {
-    return [];
-  }
-}
-
-function writeMeta(meta) {
-  fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2));
-}
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod !== 'POST' && event.httpMethod !== 'DELETE') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -33,19 +19,14 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: 'Missing "id"' };
   }
 
-  const meta = readMeta();
-  const record = meta.find((s) => s.id === id);
-  if (!record) {
+  const store = getStore(STORE);
+  const index = (await store.get('index', { type: 'json' })) || [];
+  if (!index.find((s) => s.id === id)) {
     return { statusCode: 404, body: 'Sound not found' };
   }
 
-  try {
-    fs.unlinkSync(path.join(SOUND_DIR, record.filename));
-  } catch (e) {
-    // file may already be gone after a cold start; ignore
-  }
-
-  writeMeta(meta.filter((s) => s.id !== id));
+  await store.delete('audio:' + id);
+  await store.setJSON('index', index.filter((s) => s.id !== id));
 
   return {
     statusCode: 200,
