@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VAULT-TEC SOUNDBOARD</title>
+<style>
+  :root {
+    --green: #3cff7a;
+    --green-dim: #1f9c4a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: #03100a;
+    color: #3cff7a;
+    font-family: "Courier New", "Lucida Console", Monaco, monospace;
+  }
+  body {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(60,255,122,0.10), transparent 60%),
+      #03100a;
+    text-shadow: 0 0 4px rgba(60,255,122,0.55);
+    overflow-x: hidden;
+  }
+
+  /* CRT scanlines + vignette flicker */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.28) 3px,
+      rgba(0,0,0,0.28) 4px
+    );
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+    animation: flicker 4s infinite;
+  }
+  @keyframes flicker {
+    0%, 96%, 100% { opacity: 1; }
+    97% { opacity: 0.85; }
+    98% { opacity: 0.97; }
+  }
+
+  header {
+    text-align: center;
+    padding: 22px 16px 6px;
+    position: relative;
+    z-index: 1;
+  }
+  header h1 {
+    margin: 0;
+    font-size: clamp(20px, 4vw, 40px);
+    letter-spacing: 6px;
+    font-weight: bold;
+  }
+  header .sub {
+    margin-top: 6px;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--green-dim);
+  }
+
+  #status {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--green-dim);
+    min-height: 16px;
+    margin: 4px 0 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    padding: 10px 18px 120px;
+    max-width: 1500px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .tile {
+    position: relative;
+    border: 2px solid var(--green-dim);
+    background: linear-gradient(180deg, rgba(60,255,122,0.06), rgba(60,255,122,0.02));
+    color: var(--green);
+    border-radius: 6px;
+    min-height: 110px;
+    padding: 16px 12px;
+    font-family: inherit;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    word-break: break-word;
+    transition: transform 0.05s ease, box-shadow 0.12s ease, background 0.12s ease;
+    text-shadow: inherit;
+    box-shadow: inset 0 0 14px rgba(60,255,122,0.08);
+  }
+  .tile:hover {
+    background: linear-gradient(180deg, rgba(60,255,122,0.16), rgba(60,255,122,0.06));
+    box-shadow: 0 0 18px rgba(60,255,122,0.35), inset 0 0 14px rgba(60,255,122,0.18);
+  }
+  .tile:active, .tile.playing {
+    transform: scale(0.97);
+    background: rgba(60,255,122,0.30);
+    color: #03100a;
+    text-shadow: none;
+    box-shadow: 0 0 26px rgba(60,255,122,0.6);
+  }
+
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--green-dim);
+    padding: 60px 20px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    line-height: 1.8;
+  }
+
+  /* Info button + panel */
+  #info-toggle {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 50;
+    background: #03100a;
+    color: var(--green);
+    border: 2px solid var(--green-dim);
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-shadow: inherit;
+    box-shadow: 0 0 12px rgba(60,255,122,0.25);
+  }
+  #info-toggle:hover { background: rgba(60,255,122,0.12); }
+
+  #info {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(2,10,6,0.94);
+    overflow-y: auto;
+    padding: 30px 16px 60px;
+  }
+  #info.open { display: block; }
+  .panel {
+    max-width: 600px;
+    margin: 0 auto;
+    border: 2px solid var(--green-dim);
+    border-radius: 8px;
+    background: #051a0e;
+    padding: 24px;
+    box-shadow: 0 0 30px rgba(60,255,122,0.25);
+    position: relative;
+  }
+  .panel h2 { margin: 0 0 14px; letter-spacing: 4px; font-size: 18px; }
+  .panel p { line-height: 1.7; font-size: 13px; letter-spacing: 0.5px; }
+  .panel code {
+    background: #03100a;
+    border: 1px solid var(--green-dim);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--green);
+  }
+  .panel ol { line-height: 1.9; font-size: 13px; padding-left: 20px; }
+  #info-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 26px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>VAULT-TEC SOUNDBOARD</h1>
+    <div class="sub">PIP-BOY 3000 · AUDIO INTERFACE</div>
+  </header>
+  <div id="status">INITIALIZING…</div>
+
+  <main id="board"></main>
+
+  <button id="info-toggle">▸ ADD SOUNDS</button>
+
+  <div id="info">
+    <div class="panel">
+      <button id="info-close" title="Close">×</button>
+      <h2>ADDING SOUNDS</h2>
+      <p>This board automatically lists every audio file in the <code>sounds/</code> folder of the repository. To add a clip:</p>
+      <ol>
+        <li>Put your <code>.mp3</code> (or <code>.wav</code> / <code>.ogg</code> / <code>.m4a</code>) file into the <code>sounds/</code> folder of the repo.</li>
+        <li>Commit and push (or use GitHub's "Add file → Upload files" in the browser).</li>
+        <li>Wait ~30–60s for GitHub Pages to rebuild, then reload this page.</li>
+      </ol>
+      <p>The tile label comes from the filename — <code>war_never_changes.mp3</code> shows as <strong>WAR NEVER CHANGES</strong>. Use underscores or dashes for spaces.</p>
+      <p style="color:var(--green-dim);margin-top:18px;">To remove a sound, delete its file from the <code>sounds/</code> folder and push.</p>
+    </div>
+  </div>
+
+<script>
+// --- Repo detection (owner.github.io -> owner / repo) ---
+const FALLBACK = { owner: 'freeedie666', repo: 'freeedie666.github.io' };
+function repoInfo() {
+  const host = location.hostname || '';
+  if (host.endsWith('github.io')) {
+    const owner = host.split('.')[0];
+    // path-based project pages: /<repo>/...  -> use first path segment as repo
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    const repo = (seg && !seg.includes('.')) ? seg : host;
+    return { owner, repo };
+  }
+  return FALLBACK;
+}
+const REPO = repoInfo();
+const SOUNDS_DIR = 'sounds';
+const AUDIO_EXT = /\.(mp3|wav|ogg|webm|m4a|aac|flac)$/i;
+
+const boardEl = document.getElementById('board');
+const statusEl = document.getElementById('status');
+
+function prettyName(filename) {
+  return filename.replace(AUDIO_EXT, '').replace(/[_-]+/g, ' ').trim();
+}
+
+// Primary: list the sounds/ folder via the GitHub public contents API.
+async function listViaApi() {
+  const url = 'https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
+              '/contents/' + SOUNDS_DIR;
+  const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!res.ok) throw new Error('GitHub API ' + res.status);
+  const items = await res.json();
+  if (!Array.isArray(items)) throw new Error('Unexpected API response');
+  return items
+    .filter((i) => i.type === 'file' && AUDIO_EXT.test(i.name))
+    .map((i) => ({ name: prettyName(i.name), src: SOUNDS_DIR + '/' + encodeURIComponent(i.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Fallback: static manifest committed alongside the sounds.
+async function listViaManifest() {
+  const res = await fetch(SOUNDS_DIR + '/manifest.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error('manifest ' + res.status);
+  const data = await res.json();
+  return (data.sounds || []).map((s) => ({
+    name: s.name || prettyName(s.file),
+    src: SOUNDS_DIR + '/' + encodeURIComponent(s.file),
+  }));
+}
+
+async function loadSounds() {
+  statusEl.textContent = 'SCANNING SOUND BANK…';
+  let sounds = [];
+  let via = '';
+  try {
+    sounds = await listViaApi();
+    via = 'LIVE';
+  } catch (e) {
+    try {
+      sounds = await listViaManifest();
+      via = 'CACHED';
+    } catch (e2) {
+      statusEl.textContent = 'ERROR: COULD NOT LIST SOUNDS';
+      renderBoard([]);
+      return;
+    }
+  }
+  renderBoard(sounds);
+  statusEl.textContent = sounds.length
+    ? sounds.length + ' CLIP(S) · ' + via + ' · TAP A TILE TO PLAY'
+    : 'NO CLIPS — ADD FILES TO THE sounds/ FOLDER';
+}
+
+function renderBoard(sounds) {
+  boardEl.innerHTML = '';
+  if (!sounds.length) {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.innerHTML = 'NO CLIPS YET<br>DROP AUDIO FILES INTO THE <code>sounds/</code> FOLDER';
+    boardEl.appendChild(d);
+    return;
+  }
+  sounds.forEach((s) => {
+    const tile = document.createElement('button');
+    tile.className = 'tile';
+    tile.textContent = s.name;
+    tile.addEventListener('click', () => playSound(s.src, tile));
+    boardEl.appendChild(tile);
+  });
+}
+
+// Fire-and-forget: new Audio each time so clips overlap freely.
+function playSound(src, tile) {
+  const audio = new Audio(src);
+  audio.play().catch(() => {});
+  tile.classList.add('playing');
+  audio.addEventListener('ended', () => tile.classList.remove('playing'));
+  setTimeout(() => tile.classList.remove('playing'), 600);
+}
+
+// Info panel
+const infoEl = document.getElementById('info');
+document.getElementById('info-toggle').addEventListener('click', () => infoEl.classList.add('open'));
+document.getElementById('info-close').addEventListener('click', () => infoEl.classList.remove('open'));
+
+loadSounds();
+</script>
+</body>
+</html>

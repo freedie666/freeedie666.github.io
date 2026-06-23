@@ -1,4 +1,5 @@
 {
+  "_comment": "Fallback list used only if the GitHub API is unavailable. The live site auto-detects files in this folder, so updating this is optional.",
   "sounds": [
     { "name": "Pip-Boy Select",   "file": "pipboy_select.mp3" },
     { "name": "Pip-Boy Confirm",  "file": "pipboy_confirm.mp3" },

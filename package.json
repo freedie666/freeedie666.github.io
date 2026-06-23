@@ -1,9 +1,0 @@
-{
-  "name": "fallout-soundboard",
-  "version": "1.0.0",
-  "description": "Vault-Tec soundboard with Netlify Functions + Netlify Blobs storage",
-  "type": "module",
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0"
-  }
-}
